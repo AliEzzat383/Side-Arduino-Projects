@@ -16,24 +16,26 @@ const float L2 = 11.5;
 const float L3 = 13.5;
 
 // Target position
-float x = 0; // Variable x value
-float y = 0
+float x = 1; // Variable x value
+float y = 1
 ; // Sample y value
-float z = L1+L2+L3 ; // Sample z value
+float z = 1 ; // Sample z value
 
 void setup() {
   // Attach servo objects to the corresponding pins
   baseServo.attach(basePin);
   shoulderServo.attach(shoulderPin);
   elbowServo.attach(elbowPin);
-
+//  baseServo.write(0);
+//  shoulderServo.write(0);
+//  elbowServo.write(0);
   // Start serial communication
   Serial.begin(9600);
 }
 
 void loop() {
   // Check if x and y values are within the valid range
-  if (x >= -(L2 + L3) && x <= (L2 + L3) && y >= -(L2 + L3) && y <= (L2 + L3)) {
+  if (x > -(L2 + L3) && x < (L2 + L3) && y > -(L2 + L3) && y < (L2 + L3)) {
     // Check if z value is within the valid range
     if (z >= L1 && z <= (L1 + L2 + L3)) {
       // Calculate the joint angles using inverse kinematics
@@ -48,9 +50,13 @@ void loop() {
       float theta2 = gamma - alpha;
 
       // Set servo positions
-      baseServo.write(theta1);
-      shoulderServo.write(theta2);
-      elbowServo.write(theta3);
+//      float ang = 45;
+//      theta1 =ang;
+//      theta2 =ang;
+//      theta3 =ang;
+      baseServo.write(-90);
+      shoulderServo.write(0);
+      elbowServo.write(90);
 
       // Print joint angles
       Serial.print("theta1: ");
