@@ -15,7 +15,7 @@ void setup() {
   shoulderServo.attach(shoulderPin);
   elbowServo.attach(elbowPin);
 
-  baseServo.write(180);
+  baseServo.write(70);
   shoulderServo.write(0);
   elbowServo.write(0);
 

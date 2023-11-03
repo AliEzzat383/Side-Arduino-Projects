@@ -2,7 +2,7 @@
 
 Servo elbow;  // Create a Servo object named "elbow"
 
-const int elbowPin = 9;  // Define the servo pin
+const int elbowPin = 6;  // Define the servo pin
 
 void setup() {
   elbow.attach(elbowPin);  // Attach the servo to the specified pin
