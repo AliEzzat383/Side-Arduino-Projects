@@ -4,7 +4,7 @@ Servo baseServo;
 Servo shoulderServo;
 Servo elbowServo;
 
-const int basePin = 3;
+const int basePin = 9;
 const int shoulderPin = 11;
 const int elbowPin = 6;
 

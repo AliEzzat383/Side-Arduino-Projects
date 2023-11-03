@@ -30,7 +30,7 @@ print("Press the UP arrow key to increment value2 (shoulder), DOWN arrow key to 
 print("Press the LEFT arrow key to increment value1 (base), RIGHT arrow key to decrement value1.")
 print("Press 'w' to increment value3 (elbow), 's' to decrement value3.")
 print("Press 'a' to increment value5 (clamp), 'd' to decrement value5 (clamp).")
-print("Press 'LEFT' to increment value4 (wrist), 'RIGHT' to decrement value4 (wrist).")
+print("Press 'f' to increment value4 (wrist), 'j' to decrement value4 (wrist).")
 print("Press ESC to exit.")
 
 # Initialize the serial connection
@@ -108,6 +108,16 @@ while running:
         value5 -= step
         if value5 < 0:
             value5 = 0  # Ensure value5 doesn't go below zero
+    elif keys[pygame.K_f]:
+        time.sleep(delay / 1000.0)  # Delay in seconds
+        value4 += step
+        if value4 > 180:
+            value4 = 180  # Limit value4 to a maximum of 180
+    elif keys[pygame.K_j]:
+        time.sleep(delay / 1000.0)  # Delay in seconds
+        value4 -= step
+        if value4 < 0:
+            value4 = 0  # Ensure value4 doesn't go below zero
     elif keys[pygame.K_ESCAPE]:
         running = False
 
@@ -117,4 +127,3 @@ while running:
 pygame.quit()
 # Close the serial connection when done
 ser.close()
-www
