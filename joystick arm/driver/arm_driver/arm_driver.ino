@@ -15,14 +15,14 @@ const int clawPin = 3;
 int theta1 = 90; // base
 int theta2 = 90; // shoulder
 int theta3 = 0;  // elbow
-int theta4 = 90; // wrist
+int theta4 = 0; // wrist
 int theta5 = 50; // claw
 
 int range1[2] = {0, 180};  // min : max for theta1 (base)
 int range2[2] = {30, 150}; // min : max for theta2 (shoulder)
 int range3[2] = {0, 180};  // min : max for theta3 (elbow)
 int range4[2] = {0, 180};  // min : max for theta4 (wrist)
-int range5[2] = {10, 60};  // min : max for theta5 (claw)
+int range5[2] = {5, 80};  // min : max for theta5 (claw)
 
 void setup() {
   baseServo.attach(basePin);
