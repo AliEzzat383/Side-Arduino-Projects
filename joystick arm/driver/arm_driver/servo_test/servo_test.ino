@@ -4,9 +4,9 @@ Servo baseServo;
 Servo shoulderServo;
 Servo elbowServo;
 
-const int basePin = 9;
-const int shoulderPin = 11;
-const int elbowPin = 6;
+const int basePin = 3;
+const int shoulderPin = A3;
+const int elbowPin = A4;
 
 int theta1 = 0; // Initialize theta1
 
@@ -15,7 +15,7 @@ void setup() {
   shoulderServo.attach(shoulderPin);
   elbowServo.attach(elbowPin);
 
-  baseServo.write(70);
+  baseServo.write(0);
   shoulderServo.write(0);
   elbowServo.write(0);
 
