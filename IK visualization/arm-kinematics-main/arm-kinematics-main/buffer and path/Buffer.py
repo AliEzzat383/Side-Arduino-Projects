@@ -14,7 +14,8 @@ with open('output.csv', 'r') as csvfile:
 for ang in path:
     # print(ang)
     time.sleep(2)
-    ser.write(f"{round(ang[0])},{round(ang[1])},{round(ang[2])},{round(ang[3])},{round(ang[4])},{60}\n".encode())
+    # ser.write(f"{round(ang[0])},{round(ang[1])},{round(ang[2])},{round(ang[3])},{round(ang[4])},{60}\n".encode())
+    ser.write(f"{round(ang[0])},{round(ang[1])},{round(ang[2])},{round(ang[3])},{round(ang[4])},{ang[5]}\n".encode())
     # print(f"{round(ang[0])},{round(ang[1])},{round(ang[2])},{round(ang[3])},{round(ang[4])},{60}\n".encode())
 
 ser.close()
