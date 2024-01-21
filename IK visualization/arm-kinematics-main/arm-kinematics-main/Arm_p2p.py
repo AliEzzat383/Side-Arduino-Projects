@@ -55,7 +55,7 @@ class arm:
             eq2 = y - L1 * np.sin(theta_1) - L2 * np.sin(theta_1 + theta_2) - L3 * np.sin(theta_1 + theta_2 + theta_3)
             return [eq1, eq2, 0]
         if initial_guess is None:
-            initial_guess = [56,90,88]
+            initial_guess = [5.06,-67.00,-12.00]
 
         result = fsolve(equations, initial_guess)
 
