@@ -57,7 +57,6 @@ class arm:
         self.text = ''
 
     def inverse_kinematics_N3(self, L0, L1, L2, L3, x, y, z, initial_guess=None):
-        z=-z
         theta_0 = math.atan2(y, x)
         R = abs(math.sqrt(x**2 + y**2))
 
@@ -68,7 +67,7 @@ class arm:
             return [eq1, eq2, 0]
 
         if initial_guess is None:
-            initial_guess_Rz = [24.15,81.91,49.8]
+            initial_guess_Rz = [30,-60,30]
 
         result_Rz = fsolve(equations_Rz, initial_guess_Rz)
 
@@ -92,6 +91,16 @@ class arm:
             theta_0_deg = -theta_0_deg
         if theta_1_deg > 0:
             theta_1_deg = -theta_1_deg
+                # theta 2 joint limitations
+        if theta_2_deg > 90 :
+            theta_2_deg = 90
+        if theta_2_deg <-90:
+            theta_2_deg = -90
+        # theta 3 joint limitations
+        if theta_3_deg > 90:
+            theta_3_deg = 90
+        if theta_3_deg < -90:
+            theta_3_deg = -90
 
         return theta_0_deg, theta_1_deg, theta_2_deg, theta_3_deg
 
@@ -189,11 +198,16 @@ class arm:
 
                             self.theta0 = self.theta0
                             self.theta1 = self.theta1
-                            self.theta2 = -self.theta2 + 90
-                            self.theta3 = (self.theta3 + 90) % 360
+                            self.theta2 = self.theta2 + 90
+                            self.theta3 = (-self.theta3 + 90) % 360
 
                             self.str = f'{self.theta0},{self.theta1},{self.theta2},0,{self.theta3},80\n'
                             print(self.str)
+
+                            ser = serial.Serial('COM3', 115200)
+                            time.sleep(2)
+                            ser.write(self.str.encode())
+                            ser.close()
 
                             self.text = ''  # Clear the input box after processing the coordinates
                         except ValueError:
