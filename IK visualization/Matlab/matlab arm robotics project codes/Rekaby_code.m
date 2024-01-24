@@ -6,12 +6,14 @@ waist = servo(a, 'D11');
 arm1 = servo(a, 'D10');
 arm2 = servo(a, 'D9');
 
-position1 = readPosition(waist);
+position1 = readPosition(waist); %values from 0 to 1
 position2 = readPosition(arm1);
 position3 = readPosition(arm2);
-theta1=position1*pi;
+
+theta1=position1*pi;             %values converted to radian
 theta2=position2*pi;
 theta3=position3*pi;
+
 body1 = rigidBody('waist');
 jnt1 = rigidBodyJoint('jnt1','revolute');
 jnt1.HomePosition = 0;% orientation of the waist from the base
