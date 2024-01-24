@@ -6,7 +6,7 @@ import math
 import pygame
 import numpy as np
 from scipy.optimize import fsolve
-from scipy.optimize import root
+from scipy.optimize import minimize
 import time
 
 class arm:
@@ -33,6 +33,8 @@ class arm:
         self.a1 = a1
         self.a2 = a2
         self.a3 = a3
+        self.link_lengths=[a1,a2,a3]
+        self.num_joints = len(self.link_lengths)
 
         # Font setup
         self.font = pygame.font.SysFont(None, 24)
@@ -56,28 +58,42 @@ class arm:
         self.active = False
         self.text = ''
 
-    def inverse_kinematics_N3(self, L0, L1, L2, L3, x, y, z, initial_guess=None):
-        theta_0 = math.atan2(y, x)
-        R = abs(math.sqrt(x**2 + y**2))
-
-        def equations_Rz(variables):
-            theta_1, theta_2, theta_3 = variables
-            eq1 = R - L1 * np.cos(theta_1) - L2 * np.cos(theta_1 + theta_2) - L3 * np.cos(theta_1 + theta_2 + theta_3)
-            eq2 = z - L0 - L1 * np.sin(theta_1) - L2 * np.sin(theta_1 + theta_2) - L3 * np.sin(theta_1 + theta_2 + theta_3)
-            return [eq1, eq2, 0]
-
+    def inverse_kinematics_N4(self, x_t, y_t, z_t, initial_guess=None):
+        r_t=abs(math.sqrt(x_t**2+y_t**2))
+        target_position = np.array([r_t,z_t])
         if initial_guess is None:
-            initial_guess_Rz = [30,-60,30]
+            # initial_guess = [-63.00,122.45,-12.00]
+            # initial_guess = [0,-90,90]
+            initial_guess = [-90,120,0]
+        def forward_kinematics(angles):
+            r = 0
+            z = 0
+            for i in range(self.num_joints):
+                r += self.link_lengths[i] * np.cos(np.sum(angles[:i+1]))
+                z += self.link_lengths[i] * np.sin(np.sum(angles[:i+1]))
+            return np.array([r, z]) 
+        
+        def error_function(angles, target_position):
+            end_effector_position = forward_kinematics(angles)
+            return np.linalg.norm(end_effector_position - target_position)
 
-        result_Rz = fsolve(equations_Rz, initial_guess_Rz)
+        result = minimize(
+            fun=lambda angles: error_function(angles, target_position),
+            x0=initial_guess,
+            method='SLSQP',
+            bounds=[(-np.pi, 0), (0, np.radians(145)), (-np.radians(90), np.radians(90))],
+            options={'disp': False},
+            tol= 1.49e-10,
+        )
 
-        theta_1, theta_2, theta_3 = result_Rz
+        theta_0 = math.atan2(y_t,x_t)
+        theta_1, theta_2, theta_3 = result.x
 
+        # converting from radian to degree
         theta_0_deg = np.degrees(theta_0 % (2 * np.pi))
         theta_1_deg = np.degrees(theta_1 % (2 * np.pi))
         theta_2_deg = np.degrees(theta_2 % (2 * np.pi))
         theta_3_deg = np.degrees(theta_3 % (2 * np.pi))
-
         # keep angles in range of 180
         if abs(theta_0_deg) > 180:
             theta_0_deg = int(theta_0_deg - math.copysign(360, theta_0_deg))
@@ -87,23 +103,24 @@ class arm:
             theta_2_deg = int(theta_2_deg - math.copysign(360, theta_2_deg))
         if abs(theta_3_deg) > 180:
             theta_3_deg = int(theta_3_deg - math.copysign(360, theta_3_deg))
-        if theta_0_deg>0:
-            theta_0_deg = -theta_0_deg
-        if theta_1_deg > 0:
-            theta_1_deg = -theta_1_deg
-                # theta 2 joint limitations
-        if theta_2_deg > 90 :
-            theta_2_deg = 90
-        if theta_2_deg <-90:
-            theta_2_deg = -90
-        # theta 3 joint limitations
-        if theta_3_deg > 90:
-            theta_3_deg = 90
-        if theta_3_deg < -90:
-            theta_3_deg = -90
-
-        return theta_0_deg, theta_1_deg, theta_2_deg, theta_3_deg
-
+        # # theta 1 joint correction
+        # if theta_1_deg > 0:
+        #     theta_1_deg=-theta_1_deg
+        # # theta 1 joint limitations
+        # if theta_1_deg < -90 :
+        #     theta_1_deg = -90
+        # # # theta 2 joint limitations
+        # if theta_2_deg > 145 :
+        #     theta_2_deg = 145
+        # if theta_2_deg < 0:
+        #     theta_2_deg = 0
+        # # theta 3 joint limitations
+        # if theta_3_deg > 90:
+        #     theta_3_deg = 90
+        # if theta_3_deg < -90:
+        #     theta_3_deg = -90
+        initial_guess=[theta_1_deg,theta_2_deg,theta_3_deg]
+        return theta_0_deg,theta_1_deg, theta_2_deg, theta_3_deg
     def draw_input_box(self):
         txt_surface = self.font.render(self.text, True, self.color)
         width = max(200, txt_surface.get_width()+10)
@@ -173,10 +190,7 @@ class arm:
                         try:
                             coords = [float(val) for val in self.text.split(',')]
                             self.destination = pygame.math.Vector3(coords[0], coords[1], coords[2] + self.Cy)
-                            self.theta0, self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N3(
-                                self.a0, self.a1, self.a2, self.a3,
-                                self.destination[0], self.destination[1], self.destination[2] - self.Cy
-                            )
+                            self.theta0, self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(self.destination[0], self.destination[1], self.destination[2] - self.Cy)
                             R = abs(math.sqrt(coords[0] ** 2 + coords[1] ** 2))
                             self.xy0[0] = R * math.cos(np.radians(self.theta0)) + self.Cx
                             self.xy0[1] = R * math.sin(np.radians(self.theta0)) + self.Cy
@@ -198,7 +212,7 @@ class arm:
 
                             self.theta0 = self.theta0
                             self.theta1 = self.theta1
-                            self.theta2 = self.theta2 + 90
+                            self.theta2 = self.theta2
                             self.theta3 = (-self.theta3 + 90) % 360
 
                             self.str = f'{self.theta0},{self.theta1},{self.theta2},0,{self.theta3},80\n'
@@ -230,5 +244,5 @@ class arm:
         sys.exit()
 
 if __name__ == "__main__":
-    arm_instance = arm(100, 130, 120, 125)
+    arm_instance = arm(110, 130, 120, 125)
     arm_instance.run()
