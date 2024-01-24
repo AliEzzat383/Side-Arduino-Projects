@@ -16,6 +16,7 @@ class arm:
         self.clock = pygame.time.Clock()
         # Screen dimensions
         self.width, self.height = 1000, 1000
+        self.Cx,self.Cy = self.width // 2 ,self.height // 2
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption('Three-Link Robotic Arm System Animation')
 
@@ -39,14 +40,14 @@ class arm:
 
         # Initialize variables for positions of destinations and angles
 
-        self.xy1  = pygame.math.Vector2(self.width // 2,self.height // 2)
-        self.xy2  = pygame.math.Vector2(self.width // 2,self.height // 2)
-        self.xy3  = pygame.math.Vector2(self.width // 2,self.height // 2)
+        self.xy1  = pygame.math.Vector2(self.Cx,self.Cy)
+        self.xy2  = pygame.math.Vector2(self.Cx,self.Cy)
+        self.xy3  = pygame.math.Vector2(self.Cx,self.Cy)
         
         self.theta1, self.theta2, self.theta3 = 0, 0, 0
         self.source = self.xy3
-        self.destination  = pygame.math.Vector2(self.width // 2,self.height // 2)
-        self.distance = 0  
+        self.destination  = pygame.math.Vector2(self.Cx,self.Cy)
+        # self.target_point =[] 
         self.str = "0,90,0,90,90,60".encode()
   
     
@@ -112,12 +113,12 @@ class arm:
 
     def draw(self):
             self.screen.fill(self.white) 
-            pygame.draw.line(self.screen, self.black, ((-0.5*self.a0)+(self.width // 2), self.a0+(self.height // 2)), ((0.5*self.a0)+(self.width // 2), self.a0+(self.height // 2)), 5)
-            pygame.draw.line(self.screen, self.black, (self.width // 2, self.a0+(self.height // 2)), (self.width // 2, self.height // 2), 5)
-            pygame.draw.line(self.screen, self.black, (self.width // 2, self.height // 2), (self.xy1[0], self.xy1[1]), 5)
+            pygame.draw.line(self.screen, self.black, ((-0.5*self.a0)+(self.Cx), self.a0+(self.Cy)), ((0.5*self.a0)+(self.Cx), self.a0+(self.Cy)), 5)
+            pygame.draw.line(self.screen, self.black, (self.Cx, self.a0+(self.Cy)), (self.Cx, self.Cy), 5)
+            pygame.draw.line(self.screen, self.black, (self.Cx, self.Cy), (self.xy1[0], self.xy1[1]), 5)
             pygame.draw.line(self.screen, self.black, (self.xy1[0], self.xy1[1]), (self.xy2[0], self.xy2[1]), 5)
             pygame.draw.line(self.screen, self.black, (self.xy2[0], self.xy2[1]), (self.xy3[0], self.xy3[1]), 5)
-            pygame.draw.circle(self.screen, self.blue, (self.width // 2, self.height // 2), 8)
+            pygame.draw.circle(self.screen, self.blue, (self.Cx, self.Cy), 8)
             pygame.draw.circle(self.screen, self.black, (int(self.xy1[0]), int(self.xy1[1])), 8)
             pygame.draw.circle(self.screen, self.red, (int(self.xy2[0]), int(self.xy2[1])), 8)
             pygame.draw.circle(self.screen, self.red, (int(self.xy3[0]), int(self.xy3[1])), 8)
@@ -126,8 +127,8 @@ class arm:
             # pygame.draw.line(self.screen, self.black, (self.source[0],self.source[1]), (self.destination[0],self.destination[1]), 5)
 
             # Display text on screen
-            text_x = self.font.render(f"x: {self.destination[0] - self.width // 2}", True, self.black)
-            text_y = self.font.render(f"y: {-(self.destination[1] - (self.a0+self.height // 2))}", True, self.black)
+            text_x = self.font.render(f"x: {self.destination[0] - self.Cx}", True, self.black)
+            text_y = self.font.render(f"y: {-(self.destination[1] - (self.a0+self.Cy))}", True, self.black)
             text_theta1 = self.font.render(f"Theta1: {self.theta1:.2f} degrees", True, self.black)
             text_theta2 = self.font.render(f"Theta2: {self.theta2:.2f} degrees", True, self.black)
             text_theta3 = self.font.render(f"Theta3: {self.theta3:.2f} degrees", True, self.black)
@@ -142,8 +143,8 @@ class arm:
         
         if pygame.mouse.get_pressed()[0]: 
            pointx,pointy = pygame.mouse.get_pos()
-           if pointy > (self.height // 2) + self.a0 :
-               pointy = (self.height // 2) + self.a0
+           if pointy > (self.Cy) + self.a0 :
+               pointy = (self.Cy) + self.a0
             # Update initial guess based on whether it's the first point
            if not hasattr(self, 'first_point_selected') or self.first_point_selected:
             #    initial_guess = [5.06, -67.00, -12.00]
@@ -155,13 +156,18 @@ class arm:
                initial_guess = [self.theta1, self.theta2, self.theta3]
 
         # Update destination and calculate inverse kinematics
+           
            self.destination = pointx,pointy
-           self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(self.destination[0]-self.width // 2,self.destination[1]-self.height // 2,initial_guess=initial_guess)
+           
+        #    self.target_point =[self.destination[0]-self.Cx,self.destination[1]-self.Cy]
+           self.target_point =[self.destination[0]-self.Cx,self.destination[1]-self.Cy]
+
+           self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(self.target_point[0],self.target_point[1],initial_guess=initial_guess)
         # Update initial guess for the next point
            initial_guess = [self.theta1, self.theta2, self.theta3]
         # calculate joint locations for plotting (forward kinematics)
-           self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.width // 2
-           self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.height // 2
+           self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
+           self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
            self.xy2[0] = self.xy1[0] + self.a2 * np.cos(np.radians(self.theta1) + np.radians(self.theta2))
            self.xy2[1] = self.xy1[1] + self.a2 * np.sin(np.radians(self.theta1) + np.radians(self.theta2))
            self.xy3[0] = self.xy2[0] + self.a3 * np.cos(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
