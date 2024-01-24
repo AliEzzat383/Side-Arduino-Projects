@@ -42,12 +42,8 @@ class arm:
         self.theta1, self.theta2, self.theta3 = 0, 0, 0
         self.source = self.xy3
         self.destination  = pygame.math.Vector2(self.width // 2,self.height // 2)
-        self.distance = 0  
-        self.directions = pygame.math.Vector2(0,0)
-        self.points = []
-        self.angles = []
         self.str = "0,90,0,90,90,60".encode()
-        self.output = "0,90,0,90,90,60".encode()
+
 
     def inverse_kinematics_N3(self, L1, L2, L3, x, y, initial_guess=None):
         def equations(variables):
@@ -116,7 +112,7 @@ class arm:
             self.screen.blit(text_theta2, (10, 30))
             self.screen.blit(text_theta3, (10, 50))
             pygame.display.flip()
-    def move(self,filename):
+    def move(self):
         
         if pygame.mouse.get_pressed()[0]: 
            pointx,pointy = pygame.mouse.get_pos()
@@ -156,47 +152,11 @@ class arm:
            self.str = f'0,{self.theta1},{self.theta2},0,{self.theta3},80\n'#.encode()
            print(self.str)
 
-           self.angles.append(self.str)
-           self.writefile(filename)
-           
            ser = serial.Serial('COM3', 115200)
            time.sleep(2)
            ser.write(self.str.encode())
            ser.close()
                
-        
-    def writefile(self,filename):
-           
-           with open(filename,"w",newline='') as file:
-            for row in self.angles:
-                file.write(row)
-            file.close()
-
-    def readfile(self,filename):
-           ser = serial.Serial('COM3', 115200)
-           with open(filename, 'r') as csvfile:
-               self.output = csvfile.read().encode()
-               time.sleep(2)
-               ser.write(self.output)
-               print(self.output)
-               ser.close()
-
-
-    def calculate_distance(self):
-        distance = int(math.hypot(self.destination[0] - self.source[0], self.destination[1] - self.source[1]))
-        if distance > 0:
-            # Get number of points 
-            num_points = (distance)
-
-            # Calculate spacing
-            spacing = distance / (num_points)
-
-            self.points = [self.source]
-            for i in range(1, num_points):
-                pt_x = self.source[0] + i * spacing * (self.destination[0] - self.source[0]) / distance
-                pt_y = self.source[1] + i * spacing * (self.destination[1] - self.source[1]) / distance 
-                self.points.append((pt_x, pt_y))
-            self.points.append(self.destination)
     def run(self):
         running = True
         while running:
@@ -204,7 +164,7 @@ class arm:
                 if event.type == pygame.QUIT:
                     running = False
 
-            self.move('output.csv')
+            self.move()
             pygame.display.flip()  # Move display.flip() outside the move() method
             self.clock.tick(60)  # Adjust 60 to your desired frame rate
 
