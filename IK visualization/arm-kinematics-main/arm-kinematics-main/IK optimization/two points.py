@@ -48,17 +48,45 @@ class arm:
         self.theta1, self.theta2, self.theta3 = 0, 0, 0
         self.source = self.xy3
         self.destination  = pygame.math.Vector2(self.Cx,self.Cy)
+        
+        #fixed constants
+        self.obj_height = 27
+        self.top_height =200
+        self.top_reach = 200
+
+        #user variables
+        self.start = 160
+        self.end_reach = 175
+        self.end_height = 5
+        
         # self.target_point =[] 
-        self.str = "0,90,0,90,90,60".encode()
+        self.str = "90,90,0,90,90,60".encode()
         self.angles = []
-  
+        self.theta_gripper = 75
     
-    def inverse_kinematics_N4(self, x_t, y_t, initial_guess):
+    def grip(self,state):
+        if state:
+            self.theta_gripper = 45
+        else:
+            self.theta_gripper = 80
+        
+    def inverse_kinematics_N4(self, x_t, y_t, initial_guess=None, boundaries=None):
         target_position = np.array([x_t, y_t])
-        # if initial_guess is None:
-        #     # initial_guess = [-63.00,122.45,-12.00]
-        #     # initial_guess = [0,-90,30]
-        #     initial_guess = [-90,120,0]
+        # Update initial guess based on whether it's the first point
+        # if boundaries!= None:
+        #     boundaries=boundaries
+        #     print("special point")
+        if not hasattr(self, 'first_point_selected') or self.first_point_selected:
+            initial_guess = [-100,60,-80]
+            boundaries = [(-np.radians(180), 0), (0, np.radians(145)), (-np.radians(90), np.radians(90))]
+            self.first_point_selected = False
+            print("first point")
+        else:
+            # Use the output angles from the previous point as the initial guess
+            initial_guess = [self.theta1, self.theta2, self.theta3]
+            boundaries = [(-np.radians(180), 0), (0, np.radians(145)), (np.radians(45), np.radians(60))]
+            print("next point")
+            # self.first_point_selected = False
         def forward_kinematics(angles):
             x = 0
             y = 0
@@ -75,11 +103,13 @@ class arm:
             fun=lambda angles: error_function(angles, target_position),
             x0=initial_guess,
             method='SLSQP',
-            bounds=[(-np.radians(180), 0), (0, np.radians(145)), (np.radians(0), np.radians(90))],
+            bounds=boundaries,
             options={'disp': False},
-            tol= 1.49e-10,
+            tol= 1.49e-7,
         )
-
+        print(result.success)
+        print(result.message)
+        print(target_position)
         theta_1, theta_2, theta_3 = result.x
 
         # converting from radian to degree
@@ -93,25 +123,10 @@ class arm:
             theta_2_deg = int(theta_2_deg - math.copysign(360, theta_2_deg))
         if abs(theta_3_deg) > 180:
             theta_3_deg = int(theta_3_deg - math.copysign(360, theta_3_deg))
-        # # theta 1 joint correction
-        # if theta_1_deg > 0:
-        #     theta_1_deg=-theta_1_deg
-        # # theta 1 joint limitations
-        # if theta_1_deg < -90 :
-        #     theta_1_deg = -90
-        # # # theta 2 joint limitations
-        # if theta_2_deg > 145 :
-        #     theta_2_deg = 145
-        # if theta_2_deg < 0:
-        #     theta_2_deg = 0
-        # # theta 3 joint limitations
-        # if theta_3_deg > 90:
-        #     theta_3_deg = 90
-        # if theta_3_deg < -90:
-        #     theta_3_deg = -90
         initial_guess=[theta_1_deg,theta_2_deg,theta_3_deg]
-        return theta_1_deg, theta_2_deg, theta_3_deg
+        return theta_1_deg, theta_2_deg, theta_3_deg 
         
+
 
     def draw(self):
             self.screen.fill(self.white) 
@@ -147,27 +162,23 @@ class arm:
            pointx,pointy = pygame.mouse.get_pos()
            if pointy > (self.Cy) + self.a0 :
                pointy = (self.Cy) + self.a0
-            # Update initial guess based on whether it's the first point
-           if not hasattr(self, 'first_point_selected') or self.first_point_selected:
-            #    initial_guess = [5.06, -67.00, -12.00]
-               initial_guess = [-100,60,50]
-            #    initial_guess = [-90,120,0]
-               self.first_point_selected = False
-           else:
-               # Use the output angles from the previous point as the initial guess
-               initial_guess = [self.theta1, self.theta2, self.theta3]
         # # Update destination and calculate inverse kinematics
         #    self.destination = pointx,pointy
         #    self.target_point =[self.destination[0]-self.Cx,self.destination[1]-self.Cy]
            # to test specific points
-           pos = [79, 41]
+               # Prompt the user to input the user variables
+           print("Please enter the user variables:")
+           self.start = int(input("Start position (in pixels): "))
+           self.end_reach = int(input("End reach position (in pixels): "))
+           self.end_height = int(input("End height position (in pixels): "))
+           ser = serial.Serial('COM3', 115200)
+           boundaries = [(-np.radians(180), 0), (0, np.radians(145)), (np.radians(90), np.radians(90))]
+           pos = [self.start, self.obj_height]
            self.destination[0] = pos[0] + self.Cx
            self.destination[1] = self.a0 + self.Cy - pos[1]
            self.target_point = [self.destination[0] - self.Cx, self.destination[1] - self.Cy]
            print(self.target_point)    
-           self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(self.target_point[0],self.target_point[1],initial_guess=initial_guess)
-           # Update initial guess for the next point
-           initial_guess = [self.theta1, self.theta2, self.theta3]
+           self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(self.target_point[0],self.target_point[1],boundaries=boundaries)
            # calculate joint locations for plotting (forward kinematics)
            self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
            self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
@@ -176,6 +187,7 @@ class arm:
            self.xy3[0] = self.xy2[0] + self.a3 * np.cos(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
            self.xy3[1] = self.xy2[1] + self.a3 * np.sin(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))   
            self.draw()
+           self.grip(False)
            #edit angles for physical arm configuration and joint limitations
            self.theta1=abs(round(self.theta1,0))
            self.theta2= round(self.theta2,0)
@@ -184,19 +196,72 @@ class arm:
            self.theta2=self.theta2
            self.theta3 = (-self.theta3 + 90) % 360
            #send angles to arduino driver
-           self.str = f'90,{self.theta1},{self.theta2},0,{self.theta3},60\n'#.encode()
+           self.str = f'90,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'#.encode()
            print(self.str)
-           ser = serial.Serial('COM3', 115200)
            time.sleep(2)
            ser.write(self.str.encode())
-           pos = [79 + 200, 41]
+
+           self.grip(True)
+           self.str = f'90,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'#.encode()
+           time.sleep(0.2)
+           ser.write(self.str.encode())
+        
+        #    pos = [79 + 200, 41]
+           for i in range (0,(self.top_reach-self.start+1),10):
+               time.sleep(0.2)
+               pos = [self.start+i, self.obj_height]
+               self.destination[0] = pos[0] + self.Cx
+               self.destination[1] = self.a0 + self.Cy - pos[1]
+               self.target_point = [self.destination[0] - self.Cx, self.destination[1] - self.Cy]
+               print(self.target_point)
+               self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(self.target_point[0],self.target_point[1])
+               # calculate joint locations for plotting (forward kinematics)
+               self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
+               self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
+               self.xy2[0] = self.xy1[0] + self.a2 * np.cos(np.radians(self.theta1) + np.radians(self.theta2))
+               self.xy2[1] = self.xy1[1] + self.a2 * np.sin(np.radians(self.theta1) + np.radians(self.theta2))
+               self.xy3[0] = self.xy2[0] + self.a3 * np.cos(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
+               self.xy3[1] = self.xy2[1] + self.a3 * np.sin(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))   
+               self.draw()
+           for j in range (0,(self.top_height-self.obj_height+1),10):
+                time.sleep(0.2)
+                pos = [160+i, self.obj_height+j]
+                self.destination[0] = pos[0] + self.Cx
+                self.destination[1] = self.a0 + self.Cy - pos[1]
+                self.target_point = [self.destination[0] - self.Cx, self.destination[1] - self.Cy]
+                print(self.target_point)
+                self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(self.target_point[0],self.target_point[1])
+                # calculate joint locations for plotting (forward kinematics)
+                self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
+                self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
+                self.xy2[0] = self.xy1[0] + self.a2 * np.cos(np.radians(self.theta1) + np.radians(self.theta2))
+                self.xy2[1] = self.xy1[1] + self.a2 * np.sin(np.radians(self.theta1) + np.radians(self.theta2))
+                self.xy3[0] = self.xy2[0] + self.a3 * np.cos(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
+                self.xy3[1] = self.xy2[1] + self.a3 * np.sin(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))   
+                self.draw()
+           #edit angles for physical arm configuration and joint limitations
+           self.theta1=abs(round(self.theta1,0))
+           self.theta2= round(self.theta2,0)
+           self.theta3=round(self.theta3,0)   
+           self.theta1=self.theta1
+           self.theta2=self.theta2
+           self.theta3 = (-self.theta3 + 90) % 360
+           #send angles to arduino driver
+           self.grip(True)
+           self.str = f'0,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'#.encode()
+           print(self.str)
+           
+        #          self.angles.append(self.str)
+        #          self.writefile('output.csv')
+           time.sleep(2)
+           ser.write(self.str.encode())
+           
+           pos = [self.end_reach, self.end_height]
            self.destination[0] = pos[0] + self.Cx
            self.destination[1] = self.a0 + self.Cy - pos[1]
            self.target_point = [self.destination[0] - self.Cx, self.destination[1] - self.Cy]
            print(self.target_point)    
-           self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(self.target_point[0],self.target_point[1],initial_guess=initial_guess)
-           # Update initial guess for the next point
-           initial_guess = [self.theta1, self.theta2, self.theta3]
+           self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(self.target_point[0],self.target_point[1],boundaries=boundaries)
            # calculate joint locations for plotting (forward kinematics)
            self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
            self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
@@ -213,13 +278,19 @@ class arm:
            self.theta2=self.theta2
            self.theta3 = (-self.theta3 + 90) % 360
            #send angles to arduino driver
-           self.str = f'0,{self.theta1},{self.theta2},0,{self.theta3},80\n'#.encode()
+           self.grip(True)
+           self.str = f'0,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'#.encode()
            print(self.str)
         #          self.angles.append(self.str)
         #          self.writefile('output.csv')
-
-           time.sleep(2)
+        #    time.sleep(2)
            ser.write(self.str.encode())
+
+           self.grip(False)
+           self.str = f'0,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'#.encode()
+           time.sleep(0.5)
+           ser.write(self.str.encode())
+           
            ser.close()
             
     def writefile(self,filename):
