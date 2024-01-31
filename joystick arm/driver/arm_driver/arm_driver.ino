@@ -132,24 +132,18 @@ void loop() {
       Serial.println("Danger Will Robinson");
     }
     else{
+      // Gradually move the wrist roll servo
+        gradualMove(wristRollServo, wristRollServo.read(), theta4, 10);
+      // Gradually move the elbow servo
+        gradualMove(elbowServo, elbowServo.read(), values[2], 10);      
+      // Gradually move the shoulder servo
+        gradualMove(shoulderServo, shoulderServo.read(), values[1], 10);
       // Gradually move the base servo
         gradualMove(baseServo, baseServo.read(), values[0], 10);
-
-        // Gradually move the shoulder servo
-        gradualMove(shoulderServo, shoulderServo.read(), values[1], 10);
-
-        // Gradually move the elbow servo
-        gradualMove(elbowServo, elbowServo.read(), values[2], 10);
-
-        // Gradually move the wrist roll servo
-        gradualMove(wristRollServo, wristRollServo.read(), theta4, 10);
-
-        // Gradually move the wrist pitch servo
+      // Gradually move the wrist pitch servo
         gradualMove(wristPitchServo, wristPitchServo.read(), theta5, 10);
-
         // Gradually move the claw servo
         gradualMove(clawServo, clawServo.read(), theta6, 10);
-        Serial.println(wristRollServo.read());
       }
     }
     else {
