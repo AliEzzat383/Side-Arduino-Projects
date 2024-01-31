@@ -5,7 +5,7 @@ import serial
 import math
 import pygame
 import numpy as np
-from scipy.optimize import fsolve
+# from scipy.optimize import fsolve
 from scipy.optimize import minimize
 import time
 
@@ -39,6 +39,15 @@ class arm:
         # Font setup
         self.font = pygame.font.SysFont(None, 24)
 
+        # Text input box setup
+        self.input_box = pygame.Rect(10, 200, 140, 32)
+        self.color_inactive = pygame.Color('lightskyblue3')
+        self.color_active = pygame.Color('dodgerblue2')
+        self.color = self.color_inactive
+        self.active = False
+        self.text = ""
+        self.color = pygame.Color('lightskyblue3')
+
         # Initialize variables for positions of destinations and angles
 
         self.xy1  = pygame.math.Vector2(self.Cx,self.Cy)
@@ -50,12 +59,13 @@ class arm:
         self.destination  = pygame.math.Vector2(self.Cx,self.Cy)
         
         #fixed constants
-        self.obj_height = 27
+        self.obj_height = 20
+        self.start = 160
         self.top_height =200
         self.top_reach = 200
 
         #user variables
-        self.start = 160
+
         self.end_reach = 175
         self.end_height = 5
         
@@ -126,8 +136,13 @@ class arm:
         initial_guess=[theta_1_deg,theta_2_deg,theta_3_deg]
         return theta_1_deg, theta_2_deg, theta_3_deg 
         
-
-
+    def draw_input_box(self):
+        txt_surface = self.font.render(self.text, True, self.color)
+        width = max(200, txt_surface.get_width()+10)
+        self.input_box.w = width
+        self.screen.blit(txt_surface, (self.input_box.x+5, self.input_box.y+5))
+        pygame.draw.rect(self.screen, self.color, self.input_box, 2)
+    
     def draw(self):
             self.screen.fill(self.white) 
             pygame.draw.line(self.screen, self.black, ((-0.5*self.a0)+(self.Cx), self.a0+(self.Cy)), ((0.5*self.a0)+(self.Cx), self.a0+(self.Cy)), 5)
@@ -143,7 +158,10 @@ class arm:
             # pygame.draw.circle(self.screen, self.black, (self.source), 8) 
             # pygame.draw.line(self.screen, self.black, (self.source[0],self.source[1]), (self.destination[0],self.destination[1]), 5)
 
+            self.draw_input_box()  # Draw the input box
+
             # Display text on screen
+            text_coord = self.font.render(f"input end reach and end height seperated by commas", True, self.black)
             text_x = self.font.render(f"x: {self.destination[0] - self.Cx}", True, self.black)
             text_y = self.font.render(f"y: {-(self.destination[1] - (self.a0+self.Cy))}", True, self.black)
             text_theta1 = self.font.render(f"Theta1: {self.theta1:.2f} degrees", True, self.black)
@@ -152,162 +170,189 @@ class arm:
 
             self.screen.blit(text_x, (10, 70))
             self.screen.blit(text_y, (10, 90))
+            self.screen.blit(text_coord, (10, 170))
             self.screen.blit(text_theta1, (10, 10))
             self.screen.blit(text_theta2, (10, 30))
             self.screen.blit(text_theta3, (10, 50))
             pygame.display.flip()
+    
     def move(self):
-        
-        if pygame.mouse.get_pressed()[0]: 
-           pointx,pointy = pygame.mouse.get_pos()
-           if pointy > (self.Cy) + self.a0 :
-               pointy = (self.Cy) + self.a0
-        # # Update destination and calculate inverse kinematics
-        #    self.destination = pointx,pointy
-        #    self.target_point =[self.destination[0]-self.Cx,self.destination[1]-self.Cy]
-           # to test specific points
-               # Prompt the user to input the user variables
-           print("Please enter the user variables:")
-           self.start = int(input("Start position (in pixels): "))
-           self.end_reach = int(input("End reach position (in pixels): "))
-           self.end_height = int(input("End height position (in pixels): "))
-           ser = serial.Serial('COM3', 115200)
-           boundaries = [(-np.radians(180), 0), (0, np.radians(145)), (np.radians(90), np.radians(90))]
-           pos = [self.start, self.obj_height]
-           self.destination[0] = pos[0] + self.Cx
-           self.destination[1] = self.a0 + self.Cy - pos[1]
-           self.target_point = [self.destination[0] - self.Cx, self.destination[1] - self.Cy]
-           print(self.target_point)    
-           self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(self.target_point[0],self.target_point[1],boundaries=boundaries)
-           # calculate joint locations for plotting (forward kinematics)
-           self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
-           self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
-           self.xy2[0] = self.xy1[0] + self.a2 * np.cos(np.radians(self.theta1) + np.radians(self.theta2))
-           self.xy2[1] = self.xy1[1] + self.a2 * np.sin(np.radians(self.theta1) + np.radians(self.theta2))
-           self.xy3[0] = self.xy2[0] + self.a3 * np.cos(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
-           self.xy3[1] = self.xy2[1] + self.a3 * np.sin(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))   
-           self.draw()
-           self.grip(False)
-           #edit angles for physical arm configuration and joint limitations
-           self.theta1=abs(round(self.theta1,0))
-           self.theta2= round(self.theta2,0)
-           self.theta3=round(self.theta3,0)   
-           self.theta1=self.theta1
-           self.theta2=self.theta2
-           self.theta3 = (-self.theta3 + 90) % 360
-           #send angles to arduino driver
-           self.str = f'90,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'#.encode()
-           print(self.str)
-           time.sleep(2)
-           ser.write(self.str.encode())
+                # Handle input events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if self.input_box.collidepoint(event.pos):
+                    self.active = not self.active
+                else:
+                    self.active = False
+                self.color = self.color_active if self.active else self.color_inactive
+            if event.type == pygame.KEYDOWN:
+                if self.active:
+                    if event.key == pygame.K_RETURN:
+                        # Process entered coordinates
+                        try:
+                            coords = [float(val) for val in self.text.split(',')]                
+                            ser = serial.Serial('COM3', 115200)
+                            boundaries = [(-np.radians(180), 0), (0, np.radians(145)), (np.radians(90), np.radians(90))]
+                            pos = [self.start, self.obj_height]
+                            self.destination[0] = pos[0] + self.Cx
+                            self.destination[1] = self.a0 + self.Cy - pos[1]
+                            self.target_point = [self.destination[0] - self.Cx, self.destination[1] - self.Cy]
+                            print(self.target_point)
+                            self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(self.target_point[0], self.target_point[1], boundaries=boundaries)
+                            # calculate joint locations for plotting (forward kinematics)
+                            self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
+                            self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
+                            self.xy2[0] = self.xy1[0] + self.a2 * np.cos(np.radians(self.theta1) + np.radians(self.theta2))
+                            self.xy2[1] = self.xy1[1] + self.a2 * np.sin(np.radians(self.theta1) + np.radians(self.theta2))
+                            self.xy3[0] = self.xy2[0] + self.a3 * np.cos(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
+                            self.xy3[1] = self.xy2[1] + self.a3 * np.sin(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
+                            self.draw()
+                            self.grip(False)
+                            # edit angles for physical arm configuration and joint limitations
+                            self.theta1 = abs(round(self.theta1, 0))
+                            self.theta2 = round(self.theta2, 0)
+                            self.theta3 = round(self.theta3, 0)
+                            self.theta1 = self.theta1
+                            self.theta2 = self.theta2
+                            self.theta3 = (-self.theta3 + 90) % 360
+                            # send angles to arduino driver
+                            self.str = f'90,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'  # .encode()
+                            print(self.str)
+                            time.sleep(2)
+                            ser.write(self.str.encode())
 
-           self.grip(True)
-           self.str = f'90,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'#.encode()
-           time.sleep(0.2)
-           ser.write(self.str.encode())
-        
-        #    pos = [79 + 200, 41]
-           for i in range (0,(self.top_reach-self.start+1),10):
-               time.sleep(0.2)
-               pos = [self.start+i, self.obj_height]
-               self.destination[0] = pos[0] + self.Cx
-               self.destination[1] = self.a0 + self.Cy - pos[1]
-               self.target_point = [self.destination[0] - self.Cx, self.destination[1] - self.Cy]
-               print(self.target_point)
-               self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(self.target_point[0],self.target_point[1])
-               # calculate joint locations for plotting (forward kinematics)
-               self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
-               self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
-               self.xy2[0] = self.xy1[0] + self.a2 * np.cos(np.radians(self.theta1) + np.radians(self.theta2))
-               self.xy2[1] = self.xy1[1] + self.a2 * np.sin(np.radians(self.theta1) + np.radians(self.theta2))
-               self.xy3[0] = self.xy2[0] + self.a3 * np.cos(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
-               self.xy3[1] = self.xy2[1] + self.a3 * np.sin(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))   
-               self.draw()
-           for j in range (0,(self.top_height-self.obj_height+1),10):
-                time.sleep(0.2)
-                pos = [160+i, self.obj_height+j]
-                self.destination[0] = pos[0] + self.Cx
-                self.destination[1] = self.a0 + self.Cy - pos[1]
-                self.target_point = [self.destination[0] - self.Cx, self.destination[1] - self.Cy]
-                print(self.target_point)
-                self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(self.target_point[0],self.target_point[1])
-                # calculate joint locations for plotting (forward kinematics)
-                self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
-                self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
-                self.xy2[0] = self.xy1[0] + self.a2 * np.cos(np.radians(self.theta1) + np.radians(self.theta2))
-                self.xy2[1] = self.xy1[1] + self.a2 * np.sin(np.radians(self.theta1) + np.radians(self.theta2))
-                self.xy3[0] = self.xy2[0] + self.a3 * np.cos(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
-                self.xy3[1] = self.xy2[1] + self.a3 * np.sin(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))   
-                self.draw()
-           #edit angles for physical arm configuration and joint limitations
-           self.theta1=abs(round(self.theta1,0))
-           self.theta2= round(self.theta2,0)
-           self.theta3=round(self.theta3,0)   
-           self.theta1=self.theta1
-           self.theta2=self.theta2
-           self.theta3 = (-self.theta3 + 90) % 360
-           #send angles to arduino driver
-           self.grip(True)
-           self.str = f'0,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'#.encode()
-           print(self.str)
-           
-        #          self.angles.append(self.str)
-        #          self.writefile('output.csv')
-           time.sleep(2)
-           ser.write(self.str.encode())
-           
-           pos = [self.end_reach, self.end_height]
-           self.destination[0] = pos[0] + self.Cx
-           self.destination[1] = self.a0 + self.Cy - pos[1]
-           self.target_point = [self.destination[0] - self.Cx, self.destination[1] - self.Cy]
-           print(self.target_point)    
-           self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(self.target_point[0],self.target_point[1],boundaries=boundaries)
-           # calculate joint locations for plotting (forward kinematics)
-           self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
-           self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
-           self.xy2[0] = self.xy1[0] + self.a2 * np.cos(np.radians(self.theta1) + np.radians(self.theta2))
-           self.xy2[1] = self.xy1[1] + self.a2 * np.sin(np.radians(self.theta1) + np.radians(self.theta2))
-           self.xy3[0] = self.xy2[0] + self.a3 * np.cos(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
-           self.xy3[1] = self.xy2[1] + self.a3 * np.sin(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))   
-           self.draw()
-           #edit angles for physical arm configuration and joint limitations
-           self.theta1=abs(round(self.theta1,0))
-           self.theta2= round(self.theta2,0)
-           self.theta3=round(self.theta3,0)   
-           self.theta1=self.theta1
-           self.theta2=self.theta2
-           self.theta3 = (-self.theta3 + 90) % 360
-           #send angles to arduino driver
-           self.grip(True)
-           self.str = f'0,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'#.encode()
-           print(self.str)
-        #          self.angles.append(self.str)
-        #          self.writefile('output.csv')
-        #    time.sleep(2)
-           ser.write(self.str.encode())
+                            self.grip(True)
+                            self.str = f'90,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'  # .encode()
+                            time.sleep(0.2)
+                            ser.write(self.str.encode())
 
-           self.grip(False)
-           self.str = f'0,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'#.encode()
-           time.sleep(0.5)
-           ser.write(self.str.encode())
-           
-           ser.close()
+                            for i in range(0, (self.top_reach - self.start + 1), 20):
+                                time.sleep(0.2)
+                                pos = [self.start + i, self.obj_height]
+                                self.destination[0] = pos[0] + self.Cx
+                                self.destination[1] = self.a0 + self.Cy - pos[1]
+                                self.target_point = [self.destination[0] - self.Cx, self.destination[1] - self.Cy]
+                                print(self.target_point)
+                                self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(
+                                    self.target_point[0], self.target_point[1])
+                                # calculate joint locations for plotting (forward kinematics)
+                                self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
+                                self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
+                                self.xy2[0] = self.xy1[0] + self.a2 * np.cos(
+                                    np.radians(self.theta1) + np.radians(self.theta2))
+                                self.xy2[1] = self.xy1[1] + self.a2 * np.sin(
+                                    np.radians(self.theta1) + np.radians(self.theta2))
+                                self.xy3[0] = self.xy2[0] + self.a3 * np.cos(
+                                    np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
+                                self.xy3[1] = self.xy2[1] + self.a3 * np.sin(
+                                    np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
+                                self.draw()
+                            for j in range(0, (self.top_height - self.obj_height + 1), 20):
+                                time.sleep(0.2)
+                                pos = [160 + i, self.obj_height + j]
+                                self.destination[0] = pos[0] + self.Cx
+                                self.destination[1] = self.a0 + self.Cy - pos[1]
+                                self.target_point = [self.destination[0] - self.Cx, self.destination[1] - self.Cy]
+                                print(self.target_point)
+                                self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(
+                                    self.target_point[0], self.target_point[1])
+                                # calculate joint locations for plotting (forward kinematics)
+                                self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
+                                self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
+                                self.xy2[0] = self.xy1[0] + self.a2 * np.cos(
+                                    np.radians(self.theta1) + np.radians(self.theta2))
+                                self.xy2[1] = self.xy1[1] + self.a2 * np.sin(
+                                    np.radians(self.theta1) + np.radians(self.theta2))
+                                self.xy3[0] = self.xy2[0] + self.a3 * np.cos(
+                                    np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
+                                self.xy3[1] = self.xy2[1] + self.a3 * np.sin(
+                                    np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
+                                self.draw()
+                            # edit angles for physical arm configuration and joint limitations
+                            self.theta1 = abs(round(self.theta1, 0))
+                            self.theta2 = round(self.theta2, 0)
+                            self.theta3 = round(self.theta3, 0)
+                            self.theta1 = self.theta1
+                            self.theta2 = self.theta2
+                            self.theta3 = (-self.theta3 + 90) % 360
+                            # send angles to arduino driver
+                            self.grip(True)
+                            self.str = f'0,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'  # .encode()
+                            print(self.str)
+
+                            # self.angles.append(self.str)
+                            # self.writefile('output.csv')
+                            time.sleep(2)
+                            ser.write(self.str.encode())
+
+                            pos = [self.end_reach, self.end_height]
+                            self.destination[0] = pos[0] + self.Cx
+                            self.destination[1] = self.a0 + self.Cy - pos[1]
+                            self.target_point = [self.destination[0] - self.Cx, self.destination[1] - self.Cy]
+                            print(self.target_point)
+                            self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(
+                                self.target_point[0], self.target_point[1], boundaries=boundaries)
+                            # calculate joint locations for plotting (forward kinematics)
+                            self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
+                            self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
+                            self.xy2[0] = self.xy1[0] + self.a2 * np.cos(
+                                np.radians(self.theta1) + np.radians(self.theta2))
+                            self.xy2[1] = self.xy1[1] + self.a2 * np.sin(
+                                np.radians(self.theta1) + np.radians(self.theta2))
+                            self.xy3[0] = self.xy2[0] + self.a3 * np.cos(
+                                np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
+                            self.xy3[1] = self.xy2[1] + self.a3 * np.sin(
+                                np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
+                            self.draw()
+                            # edit angles for physical arm configuration and joint limitations
+                            self.theta1 = abs(round(self.theta1, 0))
+                            self.theta2 = round(self.theta2, 0)
+                            self.theta3 = round(self.theta3, 0)
+                            self.theta1 = self.theta1
+                            self.theta2 = self.theta2
+                            self.theta3 = (-self.theta3 + 90) % 360
+                            # send angles to arduino driver
+                            self.grip(True)
+                            self.str = f'0,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'  # .encode()
+                            print(self.str)
+                            # self.angles.append(self.str)
+                            # self.writefile('output.csv')
+                            # time.sleep(2)
+                            ser.write(self.str.encode())
+
+                            self.grip(False)
+                            self.str = f'0,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'  # .encode()
+                            time.sleep(2)
+                            ser.write(self.str.encode())
+                            ser.close()
+
+                            self.text = ''  # Clear the input box after processing the coordinates
+                        except ValueError:
+                            print("Invalid input. Please enter valid comma-separated coordinates.")
+                    elif event.key == pygame.K_BACKSPACE:
+                        self.text = self.text[:-1]
+                    else:
+                        self.text += event.unicode
+                    
+        self.draw()
+        
+        
             
     def writefile(self,filename):
     
         with open(filename,"w",newline='') as file:
             for row in self.angles:
                 file.write(row)
-        file.close()         
+        file.close()  
+       
     def run(self):
         running = True
         while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-
             self.move()
-            pygame.display.flip()  # Move display.flip() outside the move() method
+            pygame.display.flip()
             self.clock.tick(60)  # Adjust 60 to your desired frame rate
 
         pygame.quit()
