@@ -22,10 +22,14 @@ class arm:
         pygame.display.set_caption('Three-Link Robotic Arm System Animation')
 
         # Colors
-        self.black = (0, 0, 0)
-        self.white = (255, 255, 255)
-        self.red = (255, 0, 0)
-        self.blue = (0, 0, 255)
+        self.colors = {
+            'black': (0, 0, 0),
+            'white': (255, 255, 255),
+            'red': (255, 0, 0),
+            'blue': (0, 0, 255),
+            'light_sky_blue': pygame.Color('lightskyblue3'),
+            'dodger_blue': pygame.Color('dodgerblue2'),
+        }
 
         # Link lengths
         self.a0 = a0
@@ -34,15 +38,12 @@ class arm:
         self.a3 = a3
         self.link_lengths=[a1,a2,a3]
         self.num_joints = len(self.link_lengths)
-
-
         # Font setup
         self.font = pygame.font.SysFont(None, 24)
-
         # Text input box setup
         self.input_box = pygame.Rect(10, 200, 140, 32)
-        self.color_inactive = pygame.Color('lightskyblue3')
-        self.color_active = pygame.Color('dodgerblue2')
+        self.color_inactive = self.colors['light_sky_blue']
+        self.color_active = self.colors['dodger_blue']
         self.color = self.color_inactive
         self.active = False
         self.text = ""
@@ -57,7 +58,11 @@ class arm:
         self.theta1, self.theta2, self.theta3 = 0, 0, 0
         self.source = self.xy3
         self.destination  = pygame.math.Vector2(self.Cx,self.Cy)
-        
+        # self.target_point =[] 
+        self.str = "90,90,0,90,90,60".encode()
+        self.angles = []
+        self.theta_gripper = 75
+
         #fixed constants
         self.obj_height = 20
         self.start = 160
@@ -65,20 +70,18 @@ class arm:
         self.top_reach = 200
 
         #user variables
-
         self.end_reach = 175
         self.end_height = 5
         
-        # self.target_point =[] 
-        self.str = "90,90,0,90,90,60".encode()
-        self.angles = []
-        self.theta_gripper = 75
+    def adjust_angles(self):
+        for attr in ['theta1', 'theta2', 'theta3']:
+            setattr(self, attr, round(getattr(self, attr), 0))
+        self.theta1 = abs(self.theta1)
+        self.theta2 = self.theta2
+        self.theta3 = (-self.theta3 + 90) % 360
     
-    def grip(self,state):
-        if state:
-            self.theta_gripper = 45
-        else:
-            self.theta_gripper = 80
+    def grip(self, state):
+        self.theta_gripper = 45 if state else 80
         
     def inverse_kinematics_N4(self, x_t, y_t, initial_guess=None, boundaries=None):
         target_position = np.array([x_t, y_t])
@@ -136,48 +139,55 @@ class arm:
         initial_guess=[theta_1_deg,theta_2_deg,theta_3_deg]
         return theta_1_deg, theta_2_deg, theta_3_deg 
         
-    def draw_input_box(self):
-        txt_surface = self.font.render(self.text, True, self.color)
-        width = max(200, txt_surface.get_width()+10)
-        self.input_box.w = width
-        self.screen.blit(txt_surface, (self.input_box.x+5, self.input_box.y+5))
-        pygame.draw.rect(self.screen, self.color, self.input_box, 2)
+    def forward_kinematics(self):
+        self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
+        self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
+        self.xy2[0] = self.xy1[0] + self.a2 * np.cos(np.radians(self.theta1) + np.radians(self.theta2))
+        self.xy2[1] = self.xy1[1] + self.a2 * np.sin(np.radians(self.theta1) + np.radians(self.theta2))
+        self.xy3[0] = self.xy2[0] + self.a3 * np.cos(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
+        self.xy3[1] = self.xy2[1] + self.a3 * np.sin(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
     
     def draw(self):
-            self.screen.fill(self.white) 
-            pygame.draw.line(self.screen, self.black, ((-0.5*self.a0)+(self.Cx), self.a0+(self.Cy)), ((0.5*self.a0)+(self.Cx), self.a0+(self.Cy)), 5)
-            pygame.draw.line(self.screen, self.black, (self.Cx, self.a0+(self.Cy)), (self.Cx, self.Cy), 5)
-            pygame.draw.line(self.screen, self.black, (self.Cx, self.Cy), (self.xy1[0], self.xy1[1]), 5)
-            pygame.draw.line(self.screen, self.black, (self.xy1[0], self.xy1[1]), (self.xy2[0], self.xy2[1]), 5)
-            pygame.draw.line(self.screen, self.black, (self.xy2[0], self.xy2[1]), (self.xy3[0], self.xy3[1]), 5)
-            pygame.draw.circle(self.screen, self.blue, (self.Cx, self.Cy), 8)
-            pygame.draw.circle(self.screen, self.black, (int(self.xy1[0]), int(self.xy1[1])), 8)
-            pygame.draw.circle(self.screen, self.red, (int(self.xy2[0]), int(self.xy2[1])), 8)
-            pygame.draw.circle(self.screen, self.red, (int(self.xy3[0]), int(self.xy3[1])), 8)
-            pygame.draw.circle(self.screen, self.red, (self.destination), 8) 
-            # pygame.draw.circle(self.screen, self.black, (self.source), 8) 
-            # pygame.draw.line(self.screen, self.black, (self.source[0],self.source[1]), (self.destination[0],self.destination[1]), 5)
+        def draw_input_box():
+            txt_surface = self.font.render(self.text, True, self.color)
+            width = max(200, txt_surface.get_width()+10)
+            self.input_box.w = width
+            self.screen.blit(txt_surface, (self.input_box.x+5, self.input_box.y+5))
+            pygame.draw.rect(self.screen, self.color, self.input_box, 2)
+        self.screen.fill(self.colors['white'])
+        pygame.draw.line(self.screen, self.colors['black'], ((-0.5*self.a0)+(self.Cx), self.a0+(self.Cy)), ((0.5*self.a0)+(self.Cx), self.a0+(self.Cy)), 5)
+        pygame.draw.line(self.screen, self.colors['black'], (self.Cx, self.a0+(self.Cy)), (self.Cx, self.Cy), 5)
+        pygame.draw.line(self.screen, self.colors['black'], (self.Cx, self.Cy), (self.xy1[0], self.xy1[1]), 5)
+        pygame.draw.line(self.screen, self.colors['black'], (self.xy1[0], self.xy1[1]), (self.xy2[0], self.xy2[1]), 5)
+        pygame.draw.line(self.screen, self.colors['black'], (self.xy2[0], self.xy2[1]), (self.xy3[0], self.xy3[1]), 5)
+        pygame.draw.circle(self.screen, self.colors['blue'], (self.Cx, self.Cy), 8)
+        pygame.draw.circle(self.screen, self.colors['black'], (int(self.xy1[0]), int(self.xy1[1])), 8)
+        pygame.draw.circle(self.screen, self.colors['red'], (int(self.xy2[0]), int(self.xy2[1])), 8)
+        pygame.draw.circle(self.screen, self.colors['red'], (int(self.xy3[0]), int(self.xy3[1])), 8)
+        pygame.draw.circle(self.screen, self.colors['red'], (self.destination), 8) 
+        # pygame.draw.circle(self.screen, self.black, (self.source), 8) 
+        # pygame.draw.line(self.screen, self.black, (self.source[0],self.source[1]), (self.destination[0],self.destination[1]), 5)
 
-            self.draw_input_box()  # Draw the input box
+        draw_input_box()  # Draw the input box
 
-            # Display text on screen
-            text_coord = self.font.render(f"input end reach and end height seperated by commas", True, self.black)
-            text_x = self.font.render(f"x: {self.destination[0] - self.Cx}", True, self.black)
-            text_y = self.font.render(f"y: {-(self.destination[1] - (self.a0+self.Cy))}", True, self.black)
-            text_theta1 = self.font.render(f"Theta1: {self.theta1:.2f} degrees", True, self.black)
-            text_theta2 = self.font.render(f"Theta2: {self.theta2:.2f} degrees", True, self.black)
-            text_theta3 = self.font.render(f"Theta3: {self.theta3:.2f} degrees", True, self.black)
+        # Display text on screen
+        text_coord = self.font.render(f"input end reach and end height seperated by commas", True, self.colors['black'])
+        text_x = self.font.render(f"x: {self.destination[0] - self.Cx}", True, self.colors['black'])
+        text_y = self.font.render(f"y: {-(self.destination[1] - (self.a0+self.Cy))}", True, self.colors['black'])
+        text_theta1 = self.font.render(f"Theta1: {self.theta1:.2f} degrees", True, self.colors['black'])
+        text_theta2 = self.font.render(f"Theta2: {self.theta2:.2f} degrees", True, self.colors['black'])
+        text_theta3 = self.font.render(f"Theta3: {self.theta3:.2f} degrees", True, self.colors['black'])
 
-            self.screen.blit(text_x, (10, 70))
-            self.screen.blit(text_y, (10, 90))
-            self.screen.blit(text_coord, (10, 170))
-            self.screen.blit(text_theta1, (10, 10))
-            self.screen.blit(text_theta2, (10, 30))
-            self.screen.blit(text_theta3, (10, 50))
-            pygame.display.flip()
+        self.screen.blit(text_x, (10, 70))
+        self.screen.blit(text_y, (10, 90))
+        self.screen.blit(text_coord, (10, 170))
+        self.screen.blit(text_theta1, (10, 10))
+        self.screen.blit(text_theta2, (10, 30))
+        self.screen.blit(text_theta3, (10, 50))
+        pygame.display.flip()
     
     def move(self):
-                # Handle input events
+        # Handle input events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -193,31 +203,22 @@ class arm:
                     if event.key == pygame.K_RETURN:
                         # Process entered coordinates
                         try:
-                            coords = [float(val) for val in self.text.split(',')]                
+                            coords = [float(val) for val in self.text.split(',')]
+                            self.end_reach,self.end_height = coords                
                             ser = serial.Serial('COM3', 115200)
                             boundaries = [(-np.radians(180), 0), (0, np.radians(145)), (np.radians(90), np.radians(90))]
-                            pos = [self.start, self.obj_height]
-                            self.destination[0] = pos[0] + self.Cx
-                            self.destination[1] = self.a0 + self.Cy - pos[1]
-                            self.target_point = [self.destination[0] - self.Cx, self.destination[1] - self.Cy]
+                            # pos = [self.start, self.obj_height]
+                            self.destination[0] = self.start + self.Cx
+                            self.destination[1] = self.a0 + self.Cy - self.obj_height
+                            self.target_point = [self.start, self.a0-self.obj_height]
                             print(self.target_point)
                             self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(self.target_point[0], self.target_point[1], boundaries=boundaries)
                             # calculate joint locations for plotting (forward kinematics)
-                            self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
-                            self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
-                            self.xy2[0] = self.xy1[0] + self.a2 * np.cos(np.radians(self.theta1) + np.radians(self.theta2))
-                            self.xy2[1] = self.xy1[1] + self.a2 * np.sin(np.radians(self.theta1) + np.radians(self.theta2))
-                            self.xy3[0] = self.xy2[0] + self.a3 * np.cos(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
-                            self.xy3[1] = self.xy2[1] + self.a3 * np.sin(np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
+                            self.forward_kinematics()
                             self.draw()
                             self.grip(False)
                             # edit angles for physical arm configuration and joint limitations
-                            self.theta1 = abs(round(self.theta1, 0))
-                            self.theta2 = round(self.theta2, 0)
-                            self.theta3 = round(self.theta3, 0)
-                            self.theta1 = self.theta1
-                            self.theta2 = self.theta2
-                            self.theta3 = (-self.theta3 + 90) % 360
+                            self.adjust_angles()
                             # send angles to arduino driver
                             self.str = f'90,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'  # .encode()
                             print(self.str)
@@ -239,16 +240,7 @@ class arm:
                                 self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(
                                     self.target_point[0], self.target_point[1])
                                 # calculate joint locations for plotting (forward kinematics)
-                                self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
-                                self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
-                                self.xy2[0] = self.xy1[0] + self.a2 * np.cos(
-                                    np.radians(self.theta1) + np.radians(self.theta2))
-                                self.xy2[1] = self.xy1[1] + self.a2 * np.sin(
-                                    np.radians(self.theta1) + np.radians(self.theta2))
-                                self.xy3[0] = self.xy2[0] + self.a3 * np.cos(
-                                    np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
-                                self.xy3[1] = self.xy2[1] + self.a3 * np.sin(
-                                    np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
+                                self.forward_kinematics()
                                 self.draw()
                             for j in range(0, (self.top_height - self.obj_height + 1), 20):
                                 time.sleep(0.2)
@@ -260,24 +252,10 @@ class arm:
                                 self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(
                                     self.target_point[0], self.target_point[1])
                                 # calculate joint locations for plotting (forward kinematics)
-                                self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
-                                self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
-                                self.xy2[0] = self.xy1[0] + self.a2 * np.cos(
-                                    np.radians(self.theta1) + np.radians(self.theta2))
-                                self.xy2[1] = self.xy1[1] + self.a2 * np.sin(
-                                    np.radians(self.theta1) + np.radians(self.theta2))
-                                self.xy3[0] = self.xy2[0] + self.a3 * np.cos(
-                                    np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
-                                self.xy3[1] = self.xy2[1] + self.a3 * np.sin(
-                                    np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
+                                self.forward_kinematics()
                                 self.draw()
                             # edit angles for physical arm configuration and joint limitations
-                            self.theta1 = abs(round(self.theta1, 0))
-                            self.theta2 = round(self.theta2, 0)
-                            self.theta3 = round(self.theta3, 0)
-                            self.theta1 = self.theta1
-                            self.theta2 = self.theta2
-                            self.theta3 = (-self.theta3 + 90) % 360
+                            self.adjust_angles()
                             # send angles to arduino driver
                             self.grip(True)
                             self.str = f'0,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'  # .encode()
@@ -296,24 +274,10 @@ class arm:
                             self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(
                                 self.target_point[0], self.target_point[1], boundaries=boundaries)
                             # calculate joint locations for plotting (forward kinematics)
-                            self.xy1[0] = self.a1 * np.cos(np.radians(self.theta1)) + self.Cx
-                            self.xy1[1] = self.a1 * np.sin(np.radians(self.theta1)) + self.Cy
-                            self.xy2[0] = self.xy1[0] + self.a2 * np.cos(
-                                np.radians(self.theta1) + np.radians(self.theta2))
-                            self.xy2[1] = self.xy1[1] + self.a2 * np.sin(
-                                np.radians(self.theta1) + np.radians(self.theta2))
-                            self.xy3[0] = self.xy2[0] + self.a3 * np.cos(
-                                np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
-                            self.xy3[1] = self.xy2[1] + self.a3 * np.sin(
-                                np.radians(self.theta1) + np.radians(self.theta2) + np.radians(self.theta3))
+                            self.forward_kinematics()
                             self.draw()
                             # edit angles for physical arm configuration and joint limitations
-                            self.theta1 = abs(round(self.theta1, 0))
-                            self.theta2 = round(self.theta2, 0)
-                            self.theta3 = round(self.theta3, 0)
-                            self.theta1 = self.theta1
-                            self.theta2 = self.theta2
-                            self.theta3 = (-self.theta3 + 90) % 360
+                            self.adjust_angles()
                             # send angles to arduino driver
                             self.grip(True)
                             self.str = f'0,{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'  # .encode()
