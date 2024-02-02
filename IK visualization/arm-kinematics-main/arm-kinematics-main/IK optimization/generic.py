@@ -18,6 +18,7 @@ class arm:
         # Screen dimensions
         self.width, self.height = 1000, 1000
         self.Cx,self.Cy = self.width // 2 ,self.height // 2
+        self.Cy = 0.7*self.Cy
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption('Three-Link Robotic Arm System Animation')
 
@@ -218,6 +219,7 @@ class arm:
     
     def move(self):
         # Handle input events
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -281,6 +283,9 @@ class arm:
         file.close()  
        
     def run(self):
+        arduino_home = serial.Serial('COM3', 115200)
+        arduino_home.write(self.str)
+        arduino_home.close()
         running = True
         while running:
             self.move()
