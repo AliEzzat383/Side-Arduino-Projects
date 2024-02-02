@@ -15,19 +15,19 @@ const int wristPitchPin = 5;
 const int clawPin = 3;
 
 int theta1 = baseServo.read(); // base
-// int theta2 = shoulderServo.read(); // shoulder
+int theta2 = shoulderServo.read(); // shoulder
 int theta3 = elbowServo.read();  // elbow
-// int theta4 = wristRollServo.read();  // wrist_y
+int theta4 = wristRollServo.read();  // wrist_y
 int theta5 = wristPitchServo.read(); // wrist_x
 // int theta1 = 90; // base
-int theta2 = 90; // shoulder
+// int theta2 = 90; // shoulder
 // int theta3 = 0;  // elbow
-int theta4 = 70;  // wrist_y
+// int theta4 = 70;  // wrist_y
 // // int theta5 = 0; // wrist_x
 int theta6 = 60;  // claw
 
 int range1[2] = {0, 180};  // min : max for theta1 (base)
-int range2[2] = {0, 90}; // min : max for theta2 (shoulder)
+int range2[2] = {0, 180}; // min : max for theta2 (shoulder)
 int range3[2] = {0, 145};  // min : max for theta3 (elbow)
 int range4[2] = {0, 180};  // min : max for theta4 (wrist_roll)
 int range5[2] = {0, 180};  // min : max for theta5 (wrist_pitch)
