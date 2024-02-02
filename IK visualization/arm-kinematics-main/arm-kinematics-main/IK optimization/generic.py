@@ -185,13 +185,17 @@ class arm:
         pygame.draw.line(self.screen, self.colors['black'], (self.Cx, self.Cy), (self.xy1[0], self.xy1[1]), 5)
         pygame.draw.line(self.screen, self.colors['black'], (self.xy1[0], self.xy1[1]), (self.xy2[0], self.xy2[1]), 5)
         pygame.draw.line(self.screen, self.colors['black'], (self.xy2[0], self.xy2[1]), (self.xy3[0], self.xy3[1]), 5)
+
         pygame.draw.circle(self.screen, self.colors['blue'], (self.Cx, self.Cy), 8)
         pygame.draw.circle(self.screen, self.colors['black'], (int(self.xy1[0]), int(self.xy1[1])), 8)
         pygame.draw.circle(self.screen, self.colors['red'], (int(self.xy2[0]), int(self.xy2[1])), 8)
         pygame.draw.circle(self.screen, self.colors['red'], (int(self.xy3[0]), int(self.xy3[1])), 8)
         pygame.draw.circle(self.screen, self.colors['red'], (self.destination), 8) 
-        # pygame.draw.circle(self.screen, self.black, (self.source), 8) 
-        # pygame.draw.line(self.screen, self.black, (self.source[0],self.source[1]), (self.destination[0],self.destination[1]), 5)
+        
+        Rmax = 1 * (self.a1 + self.a2 + self.a3)
+        pygame.draw.line(self.screen, self.colors['black'], (self.Cx, (self.Cy + Rmax)), (self.xy0[0], self.xy0[1] + Rmax), 8)
+        pygame.draw.circle(self.screen, self.colors['blue'], (self.Cx, int(self.Cy + Rmax)), 8)
+        pygame.draw.circle(self.screen, self.colors['red'], (int(self.xy0[0]), int(self.xy0[1] + Rmax)), 8)
 
         # Display text on screen
         text_coord = self.font.render(f"input end reach , end y and end height seperated by commas", True, self.colors['black'])
@@ -219,7 +223,6 @@ class arm:
     
     def move(self):
         # Handle input events
-
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -263,8 +266,8 @@ class arm:
                             self.str = f'{self.theta0},{self.theta1},{self.theta2},0,{self.theta3},{self.theta_gripper}\n'  # .encode()
                             time.sleep(2)
                             ser.write(self.str.encode())
+                            
                             ser.close()
-
                             self.text = ''  # Clear the input box after processing the coordinates
                         except ValueError:
                             print("Invalid input. Please enter valid comma-separated coordinates.")
