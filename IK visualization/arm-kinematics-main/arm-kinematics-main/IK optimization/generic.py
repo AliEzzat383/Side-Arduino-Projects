@@ -83,7 +83,6 @@ class arm:
         self.end_height = 5  #xf
 
     def inverse_kinematics_N4(self, x_t, y_t, z_t, initial_guess=None, boundaries=None):
-        # z_t = 25
         r_t = self.get_hypo(x_t,y_t)
         target_position = np.array([r_t, z_t])
         # Update initial guess based on whether it's the first point
@@ -92,7 +91,7 @@ class arm:
         #     print("special point")
         if not hasattr(self, 'first_point_selected') or self.first_point_selected:
             # initial_guess = [-100,60,-80]
-            initial_guess = [0,0,0]
+            initial_guess = [90,0,90]
             boundaries = [(-np.radians(180), 0), (0, np.radians(145)), (-np.radians(90), np.radians(90))]
             self.first_point_selected = False
             print("first point")
@@ -267,6 +266,11 @@ class arm:
                             time.sleep(2)
                             ser.write(self.str.encode())
                             
+                            # if self.xy3 != self.destination or self.target_point[1]== 0 :
+                            #     print("false solution")
+                            # else:
+                            #     break
+
                             ser.close()
                             self.text = ''  # Clear the input box after processing the coordinates
                         except ValueError:
