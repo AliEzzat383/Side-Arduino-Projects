@@ -75,7 +75,7 @@ class arm:
             method='SLSQP',
             bounds=[(-np.pi, 0), (0, np.radians(145)), (-np.radians(90), np.radians(90))],
             options={'disp': False},
-            tol= 1.49e-10,
+            tol= 1.49e-4,
         )
 
         theta_1, theta_2, theta_3 = result.x
@@ -190,7 +190,7 @@ class arm:
            self.str = f'90,{self.theta1},{self.theta2},0,{self.theta3},60\n'#.encode()
            print(self.str)
            
-           ser = serial.Serial('COM3', 115200)
+           ser = serial.Serial('COM3', 115200,dsrdtr=True)
            time.sleep(2)
            ser.write(self.str.encode())
            ser.close()
