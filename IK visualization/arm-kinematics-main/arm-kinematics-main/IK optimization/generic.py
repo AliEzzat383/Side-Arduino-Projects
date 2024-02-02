@@ -82,27 +82,20 @@ class arm:
         self.end_y = 0       #yf
         self.end_height = 5  #xf
 
-    def inverse_kinematics_N4(self, x_t, y_t, z_t, initial_guess=None, boundaries=None):
+    def inverse_kinematics_N4(self, x_t, y_t, z_t, initial_guess=[0,0,0], boundaries=None):
         r_t = self.get_hypo(x_t,y_t)
         target_position = np.array([r_t, z_t])
         # Update initial guess based on whether it's the first point
-        # if boundaries!= None:
-        #     boundaries=boundaries
-        #     print("special point")
         if not hasattr(self, 'first_point_selected') or self.first_point_selected:
-            initial_guess = [-100,60,-80]
+            # initial_guess = [-100,60,-80]
             # initial_guess = [90,0,90]
             boundaries = [(-np.radians(90), 0), (0, np.radians(145)), (-np.radians(90), np.radians(90))]
             self.first_point_selected = False
             print("first point")
-        elif(self.theta1 == 0 and self.theta2 == 145 and self.theta3 == 0):
-            # initial_guess = [89,133.0,179]
-            initial_guess = [90,0,90]
         else:
             # Use the output angles from the previous point as the initial guess
-            initial_guess = [self.theta1, self.theta2, self.theta3]
-            # initial_guess = [0,0,0]
-            boundaries = [(-np.radians(180), 0), (0, np.radians(145)), (-np.radians(90), np.radians(90))]
+            # initial_guess = [self.theta1, self.theta2, self.theta3]
+            boundaries = [(-np.radians(180), 0), (0, np.radians(145)), (np.radians(0), np.radians(90))]
             print("next point")
             # self.first_point_selected = False
         def forward_kinematics(angles):
@@ -120,10 +113,10 @@ class arm:
         result = minimize(
             fun=lambda angles: error_function(angles, target_position),
             x0=initial_guess,
-            method='BFGS',
+            method='SLSQP',
             bounds=boundaries,
             options={'disp': False},
-            tol= 1.49e-1,
+            tol= 1.49e-10,
         )
         theta_0 = math.atan2(y_t,x_t) 
         print(result.success)
@@ -145,8 +138,9 @@ class arm:
         if abs(theta_3_deg) > 180:
             theta_3_deg = int(theta_3_deg - math.copysign(360, theta_3_deg))
         # initial_guess=[theta_1_deg,theta_2_deg,theta_3_deg]
-        if  theta_1_deg==0 or theta_2_deg==145 or theta_3_deg==0:
-            sys.exit 
+        # if not result.success:
+        #     self.inverse_kinematics_N4( x_t, y_t, z_t, initial_guess)
+
         return theta_0_deg, theta_1_deg, theta_2_deg, theta_3_deg 
 
     def adjust_angles(self):
@@ -253,6 +247,8 @@ class arm:
                                 self.target_point[0], self.target_point[1], self.target_point[2], boundaries=boundaries)
                             # calculate joint locations for plotting (forward kinematics)
                             self.forward_kinematics()
+                            if self.xy3 == self.destination:
+                                print("test")
                             self.draw()
                             # edit angles for physical arm configuration and joint limitations
                             self.adjust_angles()
