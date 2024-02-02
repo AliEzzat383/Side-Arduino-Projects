@@ -146,13 +146,13 @@ class arm:
            self.theta3=round(self.theta3,0)
 
            self.theta1=self.theta1
-           self.theta2=self.theta2+90
+           self.theta2=self.theta2
            self.theta3 = (-self.theta3 + 90) % 360
         #send angles to arduino driver
-           self.str = f'0,{self.theta1},{self.theta2},0,{self.theta3},80\n'#.encode()
+           self.str = f'90,{self.theta1},{self.theta2},0,{self.theta3},80\n'#.encode()
            print(self.str)
 
-           ser = serial.Serial('COM3', 115200)
+           ser = serial.Serial('COM3', 115200,dsrdtr=True)
            time.sleep(2)
            ser.write(self.str.encode())
            ser.close()
