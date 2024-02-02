@@ -61,7 +61,7 @@ class arm:
         self.theta0,self.theta1, self.theta2, self.theta3 = 0, 0, 0, 0
         self.source = self.xy3
         self.target_point =[0,0,0] 
-        self.str = "90,90,0,90,90,60".encode()
+        self.str = "90,90,0,90,90,60".encode() # initialization doesn't affect homing , homing taken from driver
         self.angles = []
         self.theta_gripper = 75
         self.R = 0
@@ -90,16 +90,19 @@ class arm:
         #     boundaries=boundaries
         #     print("special point")
         if not hasattr(self, 'first_point_selected') or self.first_point_selected:
-            # initial_guess = [-100,60,-80]
-            initial_guess = [90,0,90]
-            boundaries = [(-np.radians(180), 0), (0, np.radians(145)), (-np.radians(90), np.radians(90))]
+            initial_guess = [-100,60,-80]
+            # initial_guess = [90,0,90]
+            boundaries = [(-np.radians(90), 0), (0, np.radians(145)), (-np.radians(90), np.radians(90))]
             self.first_point_selected = False
             print("first point")
+        elif(self.theta1 == 0 and self.theta2 == 145 and self.theta3 == 0):
+            # initial_guess = [89,133.0,179]
+            initial_guess = [90,0,90]
         else:
             # Use the output angles from the previous point as the initial guess
             initial_guess = [self.theta1, self.theta2, self.theta3]
             # initial_guess = [0,0,0]
-            boundaries = [(-np.radians(180), 0), (0, np.radians(145)), (np.radians(0), np.radians(90))]
+            boundaries = [(-np.radians(180), 0), (0, np.radians(145)), (-np.radians(90), np.radians(90))]
             print("next point")
             # self.first_point_selected = False
         def forward_kinematics(angles):
@@ -117,10 +120,10 @@ class arm:
         result = minimize(
             fun=lambda angles: error_function(angles, target_position),
             x0=initial_guess,
-            method='SLSQP',
+            method='BFGS',
             bounds=boundaries,
             options={'disp': False},
-            tol= 1.49e-7,
+            tol= 1.49e-1,
         )
         theta_0 = math.atan2(y_t,x_t) 
         print(result.success)
@@ -141,8 +144,9 @@ class arm:
             theta_2_deg = int(theta_2_deg - math.copysign(360, theta_2_deg))
         if abs(theta_3_deg) > 180:
             theta_3_deg = int(theta_3_deg - math.copysign(360, theta_3_deg))
-        initial_guess=[theta_1_deg,theta_2_deg,theta_3_deg]
-    
+        # initial_guess=[theta_1_deg,theta_2_deg,theta_3_deg]
+        if  theta_1_deg==0 or theta_2_deg==145 or theta_3_deg==0:
+            sys.exit 
         return theta_0_deg, theta_1_deg, theta_2_deg, theta_3_deg 
 
     def adjust_angles(self):
@@ -240,7 +244,7 @@ class arm:
                             ser = serial.Serial('COM3', 115200,dsrdtr=True)
                             coords = [float(val) for val in self.text.split(',')]
                             self.end_reach,self.end_y,self.end_height = coords               
-                            boundaries = [(-np.radians(180), 0), (0, np.radians(145)), (np.radians(90), np.radians(90))]
+                            boundaries = [(-np.radians(180), 0), (0, np.radians(145)), (-np.radians(90), np.radians(90))]
                             pos = [self.end_reach, self.end_y, self.end_height]
                             self.destination = [(pos[0] + self.Cx), (self.a0 + self.Cy - pos[2])]
                             self.target_point = [pos[0], pos[1], self.a0 - pos[2]]
