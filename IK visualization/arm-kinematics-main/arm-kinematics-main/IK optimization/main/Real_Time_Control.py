@@ -61,7 +61,7 @@ class arm:
 
         #user point variables
         self.end_reach  = 160    #zf
-        self.end_yaw    =  0    #final yaw angle
+        self.end_yaw    =  70    #final yaw angle
         self.end_height =  30    #xf
 
         #control variables
@@ -79,7 +79,7 @@ class arm:
             # initial_guess = [-100,60,-80]
             # initial_guess = [90,0,90]
             initial_guess=[0,0,0]
-            boundaries = [(-np.radians(180), np.radians(0)), (0, np.radians(145)), (-np.radians(90), np.radians(90))]
+            boundaries = [(-np.radians(180), np.radians(0)), (0, np.radians(145)), (np.radians(0), np.radians(90))]
             # print("first point")
 
         else:
@@ -213,7 +213,7 @@ class arm:
         # g = self.theta_gripper  # gripper angle
         # print(f"x: {self.end_reach}, y: {self.end_yaw}, z: {self.end_height}")
         # function local variables 
-        delay = 500  # Delay in milliseconds
+        delay = 20  # Delay in milliseconds
 
         if (self.end_reach != self.previous_x or self.end_yaw != self.previous_yaw or self.end_height != self.previous_z or self.theta_gripper != self.previous_grip):
             print(f"x: {self.end_reach}, y: {self.end_yaw}, z: {self.end_height}, gripper: {self.theta_gripper}, Step: {self.step}")
@@ -226,8 +226,12 @@ class arm:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+
         keys = pygame.key.get_pressed()
 
+        if keys[pygame.K_ESCAPE]:
+            pygame.quit()
+            sys.exit()
         if keys[pygame.K_w]:
             time.sleep(delay / 1000.0)
             self.end_yaw += self.step
@@ -288,40 +292,25 @@ class arm:
 
     def move(self):
         # Handle input events
-        ser = serial.Serial('COM3', 115200,dsrdtr=True)
-        # self.end_reach,self.end_yaw,self.end_height = 160,30,30              
+        ser = serial.Serial('COM3', 115200, dsrdtr=True)
         boundaries = [(-np.radians(180), 0), (0, np.radians(145)), (-np.radians(90), np.radians(90))]
-        pos = [self.end_reach, self.end_yaw, self.end_height] # here for easy editing
+        pos = [self.end_reach, self.end_yaw, self.end_height]
+
         if self.end_reach == 0:
             self.destination = [(pos[0] + self.Cx), (self.a0 + self.Cy - pos[2])]
-        self.target_point = [pos[0], pos[1], self.a0 - pos[2]]
-        # print(pos)
-        self.theta0 = self.target_point[1]     
-        self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(self.target_point[0], self.target_point[2], boundaries=boundaries)
-        # calculate joint locations for plotting (forward kinematics)
-        self.forward_kinematics()
-        self.draw()
-        # edit angles for physical arm configuration and joint limitations
-        self.adjusted_angles()
-        # send angles to arduino driver
-        # self.grip(True)
-        self.str = f'{self.angles[0]},{self.angles[1]},{self.angles[2]},{self.wrist},{self.angles[3]},{self.theta_gripper}\n'  # .encode()
-        
-        # print(self.str)
 
-        # self.angles.append(self.str)
-        # self.writefile('output.csv',self.angles)
-        time.sleep(1.5)
-        ser.write(self.str.encode())
-
-        # self.grip(False)
-        # self.str = f'{self.theta0},{self.theta1},{self.theta2},{self.wrist},{self.theta3},{self.theta_gripper}\n'  # .encode()
-        # time.sleep(2)
-        # ser.write(self.str.encode())
-        
-
-        # ser.close()
-        self.draw()
+        # Only calculate joint positions when arm moves
+        if any(prev != curr for prev, curr in zip([self.end_reach, self.end_yaw, self.end_height], [self.previous_x, self.previous_yaw, self.previous_z])):
+            self.target_point = [pos[0], pos[1], self.a0 - pos[2]]
+            self.theta0 = self.target_point[1]
+            self.theta1, self.theta2, self.theta3 = self.inverse_kinematics_N4(self.target_point[0], self.target_point[2], boundaries=boundaries)
+            self.forward_kinematics()
+            self.draw()
+            self.adjusted_angles()
+            self.str = f'{self.angles[0]},{self.angles[1]},{self.angles[2]},{self.wrist},{self.angles[3]},{self.theta_gripper}\n'
+            time.sleep(1)
+            ser.write(self.str.encode())
+            self.draw()
 
     def tutorial(self):
         print("Press the LEFT arrow key to increment x, RIGHT arrow key to decrement x.")
