@@ -80,7 +80,6 @@ class arm:
             # initial_guess = [90,0,90]
             initial_guess=[0,0,0]
             boundaries = [(-np.radians(180), np.radians(0)), (0, np.radians(145)), (np.radians(0), np.radians(90))]
-            self.first_point_selected = False
             print("first point")
         else:
             # Use the output angles from the previous point as the initial guess
@@ -88,7 +87,7 @@ class arm:
             initial_guess=[0,0,0]
             boundaries = [(-np.radians(180), 0), (0, np.radians(145)), (-np.radians(90), np.radians(90))]
             print("next point")
-            # self.first_point_selected = False
+            self.first_point_selected = False
         def forward_kinematics(angles):
             r = 0
             z = 0
