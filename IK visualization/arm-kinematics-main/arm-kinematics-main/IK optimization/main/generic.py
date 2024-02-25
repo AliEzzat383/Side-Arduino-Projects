@@ -1,11 +1,11 @@
 import csv
 import select
+import os
 import sys
 import serial
 import math
 import pygame
 import numpy as np
-# from scipy.optimize import fsolve
 from scipy.optimize import minimize
 import time
 
@@ -13,14 +13,14 @@ class arm:
     def __init__(self, a0, a1, a2, a3):
         # Initialize Pygame
         pygame.init()
-        
+        script_name = os.path.basename(__file__)
         self.clock = pygame.time.Clock()
         # Screen dimensions
         self.width, self.height = 1000, 1000
         self.Cx,self.Cy = self.width // 2 ,self.height // 2
         self.Cy = 0.7*self.Cy
         self.screen = pygame.display.set_mode((self.width, self.height))
-        pygame.display.set_caption('Three-Link Robotic Arm System Animation')
+        pygame.display.set_caption(script_name)
 
         # Colors
         self.colors = {
@@ -281,7 +281,6 @@ class arm:
         for line in lines:
             values = [float(item) for item in line.strip().split(',')]
             self.data_read.append(values)
-
 
     def run(self):
         arduino_home = serial.Serial('COM3', 115200)
